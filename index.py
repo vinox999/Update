@@ -1,11 +1,44 @@
 from flask import Flask, jsonify
 import requests
-from google_play_scraper import app
+import re
 import logging
 
 app_flask = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+def get_play_store_version(package_name):
+    url = f"https://play.google.com/store/apps/details?id={package_name}&hl=en"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
+    }
+    try:
+        resp = requests.get(url, headers=headers, timeout=10)
+        if resp.status_code != 200:
+            raise Exception(f"Play Store returned {resp.status_code}")
+        # البحث عن الإصدار الحالي في الصفحة
+        match = re.search(r'\[\[\[\"([0-9.]+)\"\]\]', resp.text)
+        if match:
+            return match.group(1)
+        # نمط احتياطي
+        match2 = re.search(r'Current Version.+?>([0-9.]+)<', resp.text, re.DOTALL)
+        if match2:
+            return match2.group(1)
+        raise Exception("Version not found in page")
+    except Exception as e:
+        logger.error(f"Failed to fetch version: {e}")
+        # قيمة افتراضية إذا فشل الجلب
+        return "1.108.1"
+
+def AuToUpDaTE():
+    # نجلب الإصدار من Play Store
+    version = get_play_store_version("com.dts.freefireth")
+    # طلب الخادم الخارجي
+    r = requests.get(
+        f'https://bdversion.ggbluefox.com/live/ver.php?version={version}&lang=ar&device=android&channel=android&appstore=googleplay&region=ME&whitelist_version=1.3.0&whitelist_sp_version=1.0.0&device_name=google%20G011A&device_CPU=ARMv7%20VFPv3%20NEON%20VMH&device_GPU=Adreno%20(TM)%20640&device_mem=1993',
+        timeout=10
+    ).json()
+    return r['server_url'], r['latest_release_version'], version
 
 def EnV(n):
     if n < 0: raise ValueError("non-negative only")
@@ -17,7 +50,7 @@ def EnV(n):
         if not n: break
     return bytes(o)
 
-def VFi(f, v): 
+def VFi(f, v):
     return EnV((f << 3) | 0) + EnV(v)
 
 def LFi(f, v):
@@ -28,22 +61,13 @@ def TerGeT(d):
     p = bytearray()
     for k, v in d.items():
         f = int(k)
-        if isinstance(v, dict): 
+        if isinstance(v, dict):
             p += LFi(f, TerGeT(v))
-        elif isinstance(v, int): 
+        elif isinstance(v, int):
             p += VFi(f, v)
-        elif isinstance(v, (str, bytes)): 
+        elif isinstance(v, (str, bytes)):
             p += LFi(f, v)
     return bytes(p)
-
-def AuToUpDaTE():
-    result = app('com.dts.freefireth', lang="fr", country='fr')
-    version = result['version']
-    r = requests.get(
-        f'https://bdversion.ggbluefox.com/live/ver.php?version={version}&lang=ar&device=android&channel=android&appstore=googleplay&region=ME&whitelist_version=1.3.0&whitelist_sp_version=1.0.0&device_name=google%20G011A&device_CPU=ARMv7%20VFPv3%20NEON%20VMH&device_GPU=Adreno%20(TM)%20640&device_mem=1993',
-        timeout=10
-    ).json()
-    return r['server_url'], r['latest_release_version'], version
 
 @app_flask.route('/generate')
 def generate():
