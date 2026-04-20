@@ -1,0 +1,15 @@
+{
+    "functions": {
+        "index.py": {
+            "runtime": "python3.11",
+            "maxDuration": 10,
+            "memory": 1024
+        }
+    },
+    "routes": [
+        {
+            "src": "/(.*)",
+            "dest": "index.py"
+        }
+    ]
+}
